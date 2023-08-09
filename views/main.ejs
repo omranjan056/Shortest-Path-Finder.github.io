@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css"
+      integrity="sha384-xOolHFLEh07PJGoPkLv1IbcEPTNtaed2xpHsD9ESMhqIYd0nLMwNLD69Npy4HI+N"
+      crossorigin="anonymous"
+    />
+    <style>
+      .grid-item {
+        border: 1px solid black;
+        width: 50px;
+        height: 50px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-size: 20px;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="row">
+      <div class="col-lg-6 container">
+        <button class="btn btn-warning">rows: <%=rows%></button>
+      </div>
+      <div class="col-lg-6 container">
+        <button class="btn btn-warning">columns: <%=column%></button>
+      </div>
+    </div>
+    <div class="container">
+      <form method="post" action="/">
+        <div class="row">
+          <div class="col">
+            <input
+              type="text"
+              class="form-control"
+              placeholder="rows"
+              name="row"
+            />
+          </div>
+          <div class="col">
+            <input
+              type="text"
+              class="form-control"
+              placeholder="columns"
+              name="col"
+            />
+          </div>
+        </div>
+        <button type="submit" class="btn btn-success">submit input</button>
+      </form>
+      <button class="btn btn-danger" id="create_grid">
+        Click to create grid
+      </button>
+      <button class="btn btn-danger" id="obstacle" style="margin-left: 10px">
+        Click to Select opstacle
+      </button>
+      <button class="btn btn-warning" id="goal" style="margin-left: 10px">
+        Click to select goal
+      </button>
+      <button class="btn btn-warning" id="mouse" style="margin-left: 10px">
+        Add mouse
+      </button>
+      <button class="btn btn-warning" id="bfs" style="margin-left: 10px">
+        RUN
+      </button>
+    </div>
+
+    <div class="grid-container">
+      <!-- dynamically generated grid items -->
+    </div>
+
+    <script>
+      const generateBtn = document.getElementById("create_grid");
+      var start = "";
+      var goals = "";
+      let obstacles1 = [];
+      let obstacles = [];
+      var rows = "";
+      var columns = "";
+      generateBtn.addEventListener("click", function () {
+        const gridContainer = document.querySelector(".grid-container");
+
+        fetch("/rowCol")
+          .then((response) => response.json())
+          .then((data) => {
+            console.log(data);
+            rows = data.row;
+            columns = data.col;
+
+            console.log(rows);
+            console.log(columns);
+
+            gridContainer.style.display = "grid";
+            gridContainer.style.gridTemplateColumns =
+              "repeat(" + columns + ", 50px)";
+            gridContainer.style.gridTemplateRows = "repeat(" + rows + ", 50px)";
+            gridContainer.style.gap = "0px";
+
+            for (let i = 0; i < rows * columns; i++) {
+              const gridItem = document.createElement("div");
+              gridItem.classList.add("grid-item");
+              gridItem.id = `${i}`;
+              // gridItem.innerText = i;
+              gridContainer.appendChild(gridItem);
+
+              const obstacle = document.getElementById("obstacle");
+
+              obstacle.addEventListener("click", function () {
+                gridItem.addEventListener("click", () => {
+                  obstacles1.push(gridItem.id);
+                  console.log("clicked");
+                  gridItem.style.background = "red";
+                });
+              });
+
+              const goal = document.getElementById("goal");
+              goal.addEventListener("click", function () {
+                gridItem.addEventListener("click", () => {
+                  goals = gridItem.id;
+                  console.log("clicked");
+                  gridItem.style.background = "green";
+                  // console.log(goals);
+                });
+              });
+
+              goal.removeEventListener("click", function () {
+                console.log("removed");
+              });
+
+              const mouse = document.getElementById("mouse");
+
+              mouse.addEventListener("click", function () {
+                gridItem.addEventListener("click", () => {
+                  console.log("clicked");
+                  start = gridItem.id;
+                  gridItem.style.backgroundImage = "url('/images/1.png')";
+                  // console.log(start);
+                  console.log(obstacles1);
+
+                  for (let i = 0; i < obstacles1.length - 2; i++)
+                    obstacles.push(obstacles1[i]);
+                  start = obstacles1[obstacles1.length - 1];
+                  goals = obstacles1[obstacles1.length - 2];
+                  console.log(obstacles);
+                });
+              });
+
+              obstacle.removeEventListener("click", function () {
+                console.log("removed");
+              });
+
+              mouse.removeEventListener("click", function () {
+                console.log("removed");
+              });
+            }
+          });
+      });
+
+      // function for styling of the shortest path
+      const bfsButton = document.getElementById("bfs");
+      bfsButton.addEventListener("click", () => {
+        const startc = [Math.floor(start / columns), start % columns];
+
+        let goalc = [Math.floor(goals / columns), goals % columns];
+
+        let obstaclec = [[]];
+        for (let i = 0; i < obstacles.length; i++) {
+          let g = obstacles[i];
+          let p = [];
+          p.push(Math.floor(g / columns));
+          p.push(g % columns);
+          obstaclec.push(p);
+        }
+        console.log(obstaclec.length);
+        const shortestPath = findPath(rows, columns, startc, goalc, obstaclec);
+        console.log(shortestPath);
+        if (shortestPath == null) alert("path is not possible");
+        else {
+          const backgroundImage = "url('/images/1.png')";
+          let prevId = null;
+
+          for (let i = 0; i < shortestPath.length; i++) {
+            setTimeout(() => {
+              let cor = shortestPath[i];
+              let r = cor[0];
+              let c = cor[1];
+              let id = r * columns + c;
+              const gridItems = document.querySelectorAll(".grid-item");
+              if (prevId !== null) {
+                const prevItem = document.getElementById(prevId);
+                prevItem.style.backgroundColor = "yellow";
+                prevItem.style.backgroundImage = "";
+              }
+              gridItems.forEach((item) => {
+                if (item.id == id) {
+                  item.style.backgroundColor = "";
+                  item.style.backgroundImage = backgroundImage;
+                }
+              });
+
+              prevId = id;
+              if (i == shortestPath.length - 1) {
+                const finalItem = document.getElementById(id);
+                finalItem.style.backgroundColor = "yellow";
+                finalItem.style.backgroundImage = backgroundImage;
+              }
+            }, i * 70);
+          }
+        }
+      });
+
+      //below function is for calculating shortest path
+      function findPath(rows, columns, start, goal, obstacles) {
+        const queue = [start];
+        const visited = new Set([start.toString()]);
+        const parent = new Map();
+
+        while (queue.length > 0) {
+          const currentNode = queue.shift();
+
+          if (currentNode[0] === goal[0] && currentNode[1] === goal[1]) {
+            const path = [];
+            let node = currentNode;
+            while (node) {
+              path.unshift(node);
+              node = parent.get(node.toString());
+            }
+            return path;
+          }
+
+          for (const [dx, dy] of [
+            [0, 1],
+            [0, -1],
+            [1, 0],
+            [-1, 0],
+          ]) {
+            const x = currentNode[0] + dx;
+            const y = currentNode[1] + dy;
+            const neighbor = [x, y];
+            //console.log(obstacles);
+            if (
+              x >= 0 &&
+              x < rows &&
+              y >= 0 &&
+              y < columns &&
+              !obstacles.some((o) => o[0] === x && o[1] === y) &&
+              !visited.has(neighbor.toString())
+            ) {
+              queue.push(neighbor);
+              visited.add(neighbor.toString());
+              parent.set(neighbor.toString(), currentNode);
+            }
+          }
+        }
+
+        return null;
+      }
+    </script>
+  </body>
+</html>
